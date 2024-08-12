@@ -1,0 +1,124 @@
+name: Parllel
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - ".github/**"
+      - "**README.md"
+  pull_request:
+    branches: [main]
+jobs:
+  changes:
+    runs-on: [self-hosted, Linux, X64, onprem]
+    # Required permissions
+    permissions:
+      actions: write
+      contents: write
+      security-events: write
+      id-token: write
+      pull-requests: write
+
+    outputs:
+      # Expose matched filters as job 'envionment' output variable
+      changes: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      # For pull requests it's not necessary to checkout the code
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            clinical: hin_permissions/clinical/**
+            compliance: hin_permissions/compliance/**
+            financial: hin_permissions/financial/**
+            hr: hin_permissions/hr/**
+            mirror: hin_permissions/mirror/**
+            ops: hin_permissions/ops/**
+            parallon: hin_permissions/parallon/**
+            platform: hin_permissions/platform/**
+            poc: hin_permissions/poc/**
+            psg: hin_permissions/psg/**
+            pub: hin_permissions/pub/**
+            sc: hin_permissions/sc/**
+  build:
+    needs: changes
+    strategy:
+      matrix:
+        lob: ${{ fromJSON(needs.changes.outputs.changes) }}
+    runs-on: [self-hosted, Linux, X64, onprem]
+    # Required permissions
+    permissions:
+      actions: write
+      contents: write
+      security-events: write
+      id-token: write
+      pull-requests: write
+    outputs:
+      # Expose matched filters as job 'envionment' output variable
+      changes: ${{ steps.filtervar.outputs.changes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      # For pull requests it's not necessary to checkout the code
+      - uses: dorny/paths-filter@v2
+        id: filtervar
+        with:
+          filters: |
+            dev: hin_permissions/${{ matrix.lob }}/workspace_variables/dev/**
+            prod: hin_permissions/${{ matrix.lob }}/workspace_variables/prod/**
+            qa: hin_permissions/${{ matrix.lob }}/workspace_variables/qa/**
+            monitor: hin_permissions/${{ matrix.lob }}/workspace_variables/monitor/**
+
+  getchangedfiles:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'  || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      changed-files-all: ${{ steps.changed-files.outputs.all_changed_files }}
+    steps:
+      - id: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v32
+
+      - name: List all changed files
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "$file was changed"
+          done
+
+  # Terraformvarupdate:
+  #   needs: [build, changes, getchangedfiles]
+  #   strategy:
+  #     matrix:
+  #       varfolder: ${{ fromJSON(needs.build.outputs.changes) }}
+  #       lob: ${{ fromJSON(needs.changes.outputs.changes) }}
+  #   uses: HCAEDP/hca-hin-terraformapi/.github/workflows/tf-workspacevar-V2.yml@main
+  #   with:
+  #     env: ${{ matrix.varfolder }}
+  #     var-path: hin_permissions/${{ matrix.lob }}/workspace_variables
+  #     files-changed: ${{ needs.getchangedfiles.outputs.changed-files-all }}
+  #     all-files: false
+  #   secrets:
+  #     TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+  #     GH_PAT: ${{ secrets.GH_PAT }}
+
+  # TerraformPlan:
+  #   needs: [build, changes, getchangedfiles, Terraformvarupdate]
+  #   strategy:
+  #     matrix:
+  #       varfolder: ${{ fromJSON(needs.build.outputs.changes) }}
+  #       lob: ${{ fromJSON(needs.changes.outputs.changes) }}
+  #   uses: hca-ccoe/workflow-templates/.github/workflows/ru_terraform_base.yml@v3
+  #   with:
+  #     env: ${{ matrix.varfolder }}
+  #     tf-workspace: hca-hin-${{ matrix.varfolder }}-${{ matrix.lob }}
+  #     tf-path: ./hin_permissions/${{ matrix.lob }}
+  #     tf-plan: true
+  #     tf-apply: false
+  #   secrets:
+  #     TF_API_TOKEN: ${{ secrets.TFC_API_TOKEN }}
