@@ -10,7 +10,8 @@ on:
     branches: [main]
 jobs:
   changes:
-    runs-on: [self-hosted, Linux, X64, onprem]
+    # runs-on: [self-hosted, Linux, X64, onprem]
+    runs-on: ubuntu-latest
     # Required permissions
     permissions:
       actions: write
@@ -47,7 +48,8 @@ jobs:
     strategy:
       matrix:
         lob: ${{ fromJSON(needs.changes.outputs.changes) }}
-    runs-on: [self-hosted, Linux, X64, onprem]
+    # runs-on: [self-hosted, Linux, X64, onprem]
+    runs-on: ubuntu-latest
     # Required permissions
     permissions:
       actions: write
