@@ -8,7 +8,7 @@
     },
     "hin_permissions": [{
         "zone" : "landing",
-        "members" : ["group:aad_hin_gcp_data-consumer-Augmedix_base@hca.corpad.net"],
+        "members" : ["group:aad_hin_gcp_data-consumer-Augmedix_base@hca.corpad.net", "group:aad_hin_gcp_data-consumer-Augmedix_base@hca.corpad.net"],
         "project" : {
           "gcp_base" : ["roles/storage.objectAdmin", "roles/serviceusage.serviceUsageViewer", "roles/cloudfunctions.viewer"],
           "custom_permission" : ["hin_gcs_base"]
